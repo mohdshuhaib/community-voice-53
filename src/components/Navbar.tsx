@@ -34,19 +34,22 @@ export function Navbar() {
           <div className="flex items-center gap-4">
             {profile && (
               <div className="hidden md:flex items-center gap-2">
-                <Link to="/">
-                  <Button variant="ghost" size="sm">All Feedback</Button>
-                </Link>
-                <Link to="/my-complaints">
-                  <Button variant="ghost" size="sm">My Feedback</Button>
-                </Link>
-                {profile.role === "ADMIN" && (
+                {profile.role === "ADMIN" ? (
                   <Link to="/admin">
                     <Button variant="ghost" size="sm">
                       <LayoutDashboard className="h-4 w-4 mr-2" />
                       Admin
                     </Button>
                   </Link>
+                ) : (
+                  <>
+                    <Link to="/">
+                      <Button variant="ghost" size="sm">All Feedback</Button>
+                    </Link>
+                    <Link to="/my-complaints">
+                      <Button variant="ghost" size="sm">My Feedback</Button>
+                    </Link>
+                  </>
                 )}
               </div>
             )}
