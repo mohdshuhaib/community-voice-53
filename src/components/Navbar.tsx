@@ -2,7 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Moon, Sun, LogOut, User, MessageSquare, LayoutDashboard } from "lucide-react";
+import { Moon, Sun, LogOut, User, MessageSquare, LayoutDashboard, House } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -93,7 +93,7 @@ export function Navbar() {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => navigate("/")}>
-                    <User className="mr-2 h-4 w-4" />
+                    <House className="mr-2 h-4 w-4" />
                     Home
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate("/profile")}>
