@@ -178,6 +178,7 @@ export type Database = {
     Views: {
       complaints_with_stats: {
         Row: {
+          author_avatar_url: string | null
           author_email: string | null
           author_id: string | null
           author_name: string | null
