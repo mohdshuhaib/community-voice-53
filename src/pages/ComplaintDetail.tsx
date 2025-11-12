@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { ThumbsUp, MessageSquare, ArrowLeft } from "lucide-react";
+import { ThumbsUp, MessageSquare, ArrowLeft, User } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 export default function ComplaintDetail() {
@@ -57,7 +58,7 @@ export default function ComplaintDetail() {
         .from("comments")
         .select(`
           *,
-          profiles:user_id (name, role)
+          profiles:user_id (name, role, avatar_url)
         `)
         .eq("complaint_id", id)
         .order("created_at", { ascending: true });
@@ -202,8 +203,16 @@ export default function ComplaintDetail() {
                   </Badge>
                 </div>
                 <CardTitle className="text-2xl">{complaint.title}</CardTitle>
-                <CardDescription className="mt-2">
-                  Submitted by {complaint.author_name} • {formatDistanceToNow(new Date(complaint.created_at), { addSuffix: true })}
+                <CardDescription className="mt-2 flex items-center gap-2">
+                  <Avatar className="h-6 w-6">
+                    <AvatarImage src={complaint.author_avatar_url || undefined} alt={complaint.author_name} />
+                    <AvatarFallback>
+                      <User className="h-3 w-3" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <span>
+                    Submitted by {complaint.author_name} • {formatDistanceToNow(new Date(complaint.created_at), { addSuffix: true })}
+                  </span>
                 </CardDescription>
               </div>
               
@@ -247,6 +256,12 @@ export default function ComplaintDetail() {
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={comment.profiles.avatar_url || undefined} alt={comment.profiles.name} />
+                        <AvatarFallback>
+                          <User className="h-4 w-4" />
+                        </AvatarFallback>
+                      </Avatar>
                       <span className="font-medium">{comment.profiles.name}</span>
                       {comment.profiles.role === "ADMIN" && (
                         <Badge variant="secondary">Admin</Badge>

@@ -1,13 +1,14 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ThumbsUp, MessageSquare } from "lucide-react";
+import { ThumbsUp, MessageSquare, User } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface ComplaintCardProps {
   complaint: {
@@ -19,6 +20,7 @@ interface ComplaintCardProps {
     priority: string;
     created_at: string;
     author_name: string;
+    author_avatar_url?: string;
     upvote_count: number;
     author_id: string;
   };
@@ -124,7 +126,15 @@ export function ComplaintCard({ complaint, userUpvoted = false, onUpvoteChange }
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
             <Badge variant="outline">{complaint.category}</Badge>
-            <span>by {complaint.author_name}</span>
+            <div className="flex items-center gap-2">
+              <Avatar className="h-6 w-6">
+                <AvatarImage src={complaint.author_avatar_url || undefined} alt={complaint.author_name} />
+                <AvatarFallback>
+                  <User className="h-3 w-3" />
+                </AvatarFallback>
+              </Avatar>
+              <span>by {complaint.author_name}</span>
+            </div>
             <span>{formatDistanceToNow(new Date(complaint.created_at), { addSuffix: true })}</span>
           </div>
           <div className="flex items-center gap-2">

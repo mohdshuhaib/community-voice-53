@@ -8,6 +8,7 @@ interface Profile {
   email: string;
   name: string;
   role: "STUDENT" | "ADMIN";
+  avatar_url?: string;
 }
 
 interface AuthContextType {
