@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { TrendingUp, AlertCircle, CheckCircle, Clock } from "lucide-react";
+import { TrendingUp, AlertCircle, CheckCircle, Clock, Download, FileText, FileSpreadsheet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format, subDays, startOfDay, endOfDay, differenceInDays } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
@@ -38,6 +38,13 @@ export default function AdminDashboard() {
     from: subDays(new Date(), 30),
     to: new Date(),
   });
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportFilters, setExportFilters] = useState({
+    status: '',
+    category: '',
+    priority: '',
+  });
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -191,6 +198,74 @@ export default function AdminDashboard() {
     setDialogOpen(true);
   };
 
+  const handleExport = async (format: 'csv' | 'pdf') => {
+    try {
+      setExporting(true);
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
+
+      const filters = {
+        startDate: dateRange.from.toISOString(),
+        endDate: dateRange.to.toISOString(),
+        ...(exportFilters.status && { status: exportFilters.status }),
+        ...(exportFilters.category && { category: exportFilters.category }),
+        ...(exportFilters.priority && { priority: exportFilters.priority }),
+      };
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/export-feedback`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ format, filters }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Export failed');
+      }
+
+      if (format === 'csv') {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `feedback-report-${format === 'csv' ? new Date().toISOString().split('T')[0] : 'report'}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        toast({
+          title: "Success",
+          description: "Report exported successfully",
+        });
+      } else {
+        // For PDF, open in new window to print
+        const html = await response.text();
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(html);
+          printWindow.document.close();
+        }
+      }
+
+      setExportDialogOpen(false);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to export report",
+        variant: "destructive",
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const COLORS = ["#3b82f6", "#f59e0b", "#10b981"];
 
   const statusIcons = {
@@ -215,40 +290,46 @@ export default function AdminDashboard() {
       <Navbar />
       
       <main className="container mx-auto px-4 py-8">
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-3xl font-bold">Admin Dashboard</h1>
             <p className="text-muted-foreground mt-1">Analytics and feedback management</p>
           </div>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline">
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {format(dateRange.from, "MMM dd")} - {format(dateRange.to, "MMM dd, yyyy")}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <div className="p-4 space-y-2">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">From</label>
-                  <Calendar
-                    mode="single"
-                    selected={dateRange.from}
-                    onSelect={(date) => date && setDateRange({ ...dateRange, from: date })}
-                    initialFocus
-                  />
+          <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {format(dateRange.from, "MMM dd")} - {format(dateRange.to, "MMM dd, yyyy")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <div className="p-4 space-y-2">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">From</label>
+                    <Calendar
+                      mode="single"
+                      selected={dateRange.from}
+                      onSelect={(date) => date && setDateRange({ ...dateRange, from: date })}
+                      initialFocus
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">To</label>
+                    <Calendar
+                      mode="single"
+                      selected={dateRange.to}
+                      onSelect={(date) => date && setDateRange({ ...dateRange, to: date })}
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">To</label>
-                  <Calendar
-                    mode="single"
-                    selected={dateRange.to}
-                    onSelect={(date) => date && setDateRange({ ...dateRange, to: date })}
-                  />
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
+              </PopoverContent>
+            </Popover>
+            <Button onClick={() => setExportDialogOpen(true)} variant="default">
+              <Download className="mr-2 h-4 w-4" />
+              Export Report
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -516,6 +597,90 @@ export default function AdminDashboard() {
             </Button>
             <Button onClick={handleUpdateComplaint}>
               Update
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Export Dialog */}
+      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Export Feedback Report</DialogTitle>
+            <DialogDescription>Choose format and apply filters for your export</DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Status Filter</label>
+                <Select value={exportFilters.status} onValueChange={(value) => setExportFilters({ ...exportFilters, status: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All statuses</SelectItem>
+                    <SelectItem value="NEW">New</SelectItem>
+                    <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                    <SelectItem value="RESOLVED">Resolved</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Category Filter</label>
+                <Select value={exportFilters.category} onValueChange={(value) => setExportFilters({ ...exportFilters, category: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All categories</SelectItem>
+                    <SelectItem value="FACILITIES">Facilities</SelectItem>
+                    <SelectItem value="ACADEMICS">Academics</SelectItem>
+                    <SelectItem value="ADMINISTRATION">Administration</SelectItem>
+                    <SelectItem value="TECHNOLOGY">Technology</SelectItem>
+                    <SelectItem value="OTHER">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Priority Filter</label>
+                <Select value={exportFilters.priority} onValueChange={(value) => setExportFilters({ ...exportFilters, priority: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All priorities" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All priorities</SelectItem>
+                    <SelectItem value="LOW">Low</SelectItem>
+                    <SelectItem value="MEDIUM">Medium</SelectItem>
+                    <SelectItem value="HIGH">High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="bg-muted/50 p-4 rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                <strong>Date Range:</strong> {format(dateRange.from, "MMM dd, yyyy")} - {format(dateRange.to, "MMM dd, yyyy")}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Date range is set from the dashboard filter above
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setExportDialogOpen(false)} disabled={exporting}>
+              Cancel
+            </Button>
+            <Button onClick={() => handleExport('csv')} disabled={exporting}>
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              {exporting ? 'Exporting...' : 'Export CSV'}
+            </Button>
+            <Button onClick={() => handleExport('pdf')} disabled={exporting}>
+              <FileText className="mr-2 h-4 w-4" />
+              {exporting ? 'Exporting...' : 'Export PDF'}
             </Button>
           </div>
         </DialogContent>
