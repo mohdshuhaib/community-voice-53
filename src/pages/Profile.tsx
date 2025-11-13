@@ -40,7 +40,7 @@ export default function Profile() {
   const [upvoteHistory, setUpvoteHistory] = useState<UpvoteHistory[]>([]);
 
   useEffect(() => {
-    if (profile) {
+    if (profile && profile.role !== "ADMIN") {
       fetchActivityStats();
       fetchUpvoteHistory();
     }
@@ -174,7 +174,7 @@ export default function Profile() {
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-8">My Profile</h1>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className={`grid gap-6 ${profile?.role === "ADMIN" ? "md:grid-cols-1" : "md:grid-cols-2"}`}>
           {/* Profile Settings */}
           <Card>
             <CardHeader>
@@ -235,82 +235,86 @@ export default function Profile() {
             </CardContent>
           </Card>
 
-          {/* Activity Stats */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Activity Stats</CardTitle>
-              <CardDescription>Your feedback activity overview</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <TrendingUp className="h-5 w-5 text-primary" />
-                    <span className="font-medium">Total Feedback</span>
+          {/* Activity Stats - Only for non-admin users */}
+          {profile?.role !== "ADMIN" && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Activity Stats</CardTitle>
+                <CardDescription>Your feedback activity overview</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <TrendingUp className="h-5 w-5 text-primary" />
+                      <span className="font-medium">Total Feedback</span>
+                    </div>
+                    <span className="text-2xl font-bold">{stats.totalComplaints}</span>
                   </div>
-                  <span className="text-2xl font-bold">{stats.totalComplaints}</span>
-                </div>
 
-                <div className="flex items-center justify-between p-4 bg-green-500/5 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <TrendingUp className="h-5 w-5 text-green-600" />
-                    <span className="font-medium">Resolved</span>
+                  <div className="flex items-center justify-between p-4 bg-green-500/5 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <TrendingUp className="h-5 w-5 text-green-600" />
+                      <span className="font-medium">Resolved</span>
+                    </div>
+                    <span className="text-2xl font-bold text-green-600">{stats.resolvedComplaints}</span>
                   </div>
-                  <span className="text-2xl font-bold text-green-600">{stats.resolvedComplaints}</span>
-                </div>
 
-                <div className="flex items-center justify-between p-4 bg-blue-500/5 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <ThumbsUp className="h-5 w-5 text-blue-600" />
-                    <span className="font-medium">Upvotes Given</span>
+                  <div className="flex items-center justify-between p-4 bg-blue-500/5 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <ThumbsUp className="h-5 w-5 text-blue-600" />
+                      <span className="font-medium">Upvotes Given</span>
+                    </div>
+                    <span className="text-2xl font-bold text-blue-600">{stats.totalUpvotes}</span>
                   </div>
-                  <span className="text-2xl font-bold text-blue-600">{stats.totalUpvotes}</span>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
-        {/* Upvote History */}
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>Recent Upvotes</CardTitle>
-            <CardDescription>Feedback you've upvoted</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {upvoteHistory.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">
-                You haven't upvoted any feedback yet
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {upvoteHistory.map((item) => (
-                  <Link key={item.id} to={`/complaint/${item.complaint_id}`}>
-                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
-                      <div className="flex-1">
-                        <p className="font-medium">{item.complaint_title}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(item.created_at).toLocaleDateString()}
-                        </p>
+        {/* Upvote History - Only for non-admin users */}
+        {profile?.role !== "ADMIN" && (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Recent Upvotes</CardTitle>
+              <CardDescription>Feedback you've upvoted</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {upvoteHistory.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  You haven't upvoted any feedback yet
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {upvoteHistory.map((item) => (
+                    <Link key={item.id} to={`/complaint/${item.complaint_id}`}>
+                      <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
+                        <div className="flex-1">
+                          <p className="font-medium">{item.complaint_title}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(item.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            item.complaint_status === "RESOLVED"
+                              ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                              : item.complaint_status === "IN_PROGRESS"
+                              ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                              : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                          }`}
+                        >
+                          {item.complaint_status.replace("_", " ")}
+                        </span>
                       </div>
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          item.complaint_status === "RESOLVED"
-                            ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                            : item.complaint_status === "IN_PROGRESS"
-                            ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                            : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                        }`}
-                      >
-                        {item.complaint_status.replace("_", " ")}
-                      </span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

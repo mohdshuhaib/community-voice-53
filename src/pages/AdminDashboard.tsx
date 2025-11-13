@@ -8,9 +8,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { TrendingUp, AlertCircle, CheckCircle, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { format, subDays, startOfDay, endOfDay, differenceInDays } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
 
 export default function AdminDashboard() {
   const { toast } = useToast();
@@ -20,6 +24,9 @@ export default function AdminDashboard() {
     byStatus: [] as any[],
     byCategory: [] as any[],
     topUpvoted: [] as any[],
+    overTime: [] as any[],
+    categoryTrends: [] as any[],
+    avgResolutionTime: 0,
   });
   const [selectedComplaint, setSelectedComplaint] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -27,10 +34,20 @@ export default function AdminDashboard() {
   const [newPriority, setNewPriority] = useState("");
   const [adminComment, setAdminComment] = useState("");
   const [loading, setLoading] = useState(true);
+  const [dateRange, setDateRange] = useState({
+    from: subDays(new Date(), 30),
+    to: new Date(),
+  });
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (complaints.length > 0) {
+      calculateStats(complaints);
+    }
+  }, [dateRange]);
 
   const fetchData = async () => {
     try {
@@ -51,15 +68,51 @@ export default function AdminDashboard() {
   };
 
   const calculateStats = (data: any[]) => {
-    const statusCounts = data.reduce((acc, c) => {
+    // Filter data by date range
+    const filteredData = data.filter((c) => {
+      const createdAt = new Date(c.created_at);
+      return createdAt >= startOfDay(dateRange.from) && createdAt <= endOfDay(dateRange.to);
+    });
+
+    const statusCounts = filteredData.reduce((acc, c) => {
       acc[c.status] = (acc[c.status] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    const categoryCounts = data.reduce((acc, c) => {
+    const categoryCounts = filteredData.reduce((acc, c) => {
       acc[c.category] = (acc[c.category] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
+
+    // Complaints over time
+    const timeMap = new Map<string, number>();
+    filteredData.forEach((c) => {
+      const date = format(new Date(c.created_at), "MMM dd");
+      timeMap.set(date, (timeMap.get(date) || 0) + 1);
+    });
+
+    // Category trends over time
+    const categoryTimeMap = new Map<string, Record<string, number>>();
+    filteredData.forEach((c) => {
+      const date = format(new Date(c.created_at), "MMM dd");
+      if (!categoryTimeMap.has(date)) {
+        categoryTimeMap.set(date, {});
+      }
+      const dateData = categoryTimeMap.get(date)!;
+      dateData[c.category] = (dateData[c.category] || 0) + 1;
+    });
+
+    // Calculate average resolution time
+    const resolvedComplaints = filteredData.filter((c) => c.status === "RESOLVED");
+    let totalResolutionTime = 0;
+    resolvedComplaints.forEach((c) => {
+      const created = new Date(c.created_at);
+      const updated = new Date(c.updated_at);
+      totalResolutionTime += differenceInDays(updated, created);
+    });
+    const avgResolutionTime = resolvedComplaints.length > 0 
+      ? Math.round(totalResolutionTime / resolvedComplaints.length) 
+      : 0;
 
     setStats({
       byStatus: Object.entries(statusCounts).map(([name, value]) => ({
@@ -70,7 +123,16 @@ export default function AdminDashboard() {
         name,
         value,
       })),
-      topUpvoted: [...data].sort((a, b) => b.upvote_count - a.upvote_count).slice(0, 10),
+      topUpvoted: [...filteredData].sort((a, b) => b.upvote_count - a.upvote_count).slice(0, 10),
+      overTime: Array.from(timeMap.entries()).map(([date, count]) => ({
+        date,
+        count,
+      })),
+      categoryTrends: Array.from(categoryTimeMap.entries()).map(([date, categories]) => ({
+        date,
+        ...categories,
+      })),
+      avgResolutionTime,
     });
   };
 
@@ -153,13 +215,44 @@ export default function AdminDashboard() {
       <Navbar />
       
       <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-          <p className="text-muted-foreground mt-1">Analytics and feedback management</p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+            <p className="text-muted-foreground mt-1">Analytics and feedback management</p>
+          </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {format(dateRange.from, "MMM dd")} - {format(dateRange.to, "MMM dd, yyyy")}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <div className="p-4 space-y-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">From</label>
+                  <Calendar
+                    mode="single"
+                    selected={dateRange.from}
+                    onSelect={(date) => date && setDateRange({ ...dateRange, from: date })}
+                    initialFocus
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">To</label>
+                  <Calendar
+                    mode="single"
+                    selected={dateRange.to}
+                    onSelect={(date) => date && setDateRange({ ...dateRange, to: date })}
+                  />
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid gap-6 md:grid-cols-3 mb-8">
+        <div className="grid gap-6 md:grid-cols-4 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Total Feedback</CardTitle>
@@ -167,6 +260,16 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{complaints.length}</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Avg Resolution Time</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.avgResolutionTime} days</div>
             </CardContent>
           </Card>
 
@@ -187,47 +290,99 @@ export default function AdminDashboard() {
         </div>
 
         {/* Charts */}
-        <div className="grid gap-6 md:grid-cols-2 mb-8">
+        <div className="grid gap-6 mb-8">
+          {/* Complaints Over Time */}
           <Card>
             <CardHeader>
-              <CardTitle>Feedback by Status</CardTitle>
+              <CardTitle>Complaints Over Time</CardTitle>
+              <CardDescription>Feedback submission trends</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={stats.byStatus}>
+                <LineChart data={stats.overTime}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
+                  <XAxis dataKey="date" />
                   <YAxis />
                   <Tooltip />
-                  <Bar dataKey="value" fill="hsl(var(--primary))" />
-                </BarChart>
+                  <Legend />
+                  <Line type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2} />
+                </LineChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
 
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Feedback by Status</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={stats.byStatus}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="value" fill="hsl(var(--primary))" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Feedback by Category</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={stats.byCategory}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={(entry) => entry.name}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {stats.byCategory.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Category Trends Over Time */}
           <Card>
             <CardHeader>
-              <CardTitle>Feedback by Category</CardTitle>
+              <CardTitle>Category Trends</CardTitle>
+              <CardDescription>Feedback categories over time</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={stats.byCategory}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={(entry) => entry.name}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {stats.byCategory.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
+                <LineChart data={stats.categoryTrends}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
                   <Tooltip />
-                </PieChart>
+                  <Legend />
+                  {Object.keys(stats.categoryTrends[0] || {})
+                    .filter((key) => key !== "date")
+                    .map((category, idx) => (
+                      <Line
+                        key={category}
+                        type="monotone"
+                        dataKey={category}
+                        stroke={COLORS[idx % COLORS.length]}
+                        strokeWidth={2}
+                      />
+                    ))}
+                </LineChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
