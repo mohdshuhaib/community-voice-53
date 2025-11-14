@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Moon, Sun } from "lucide-react";
 
 export default function Auth() {
   const [email, setEmail] = useState("");
@@ -15,6 +16,7 @@ export default function Auth() {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const { signIn, signUp, user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -74,6 +76,19 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-4">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={toggleTheme}
+        className="fixed top-4 right-4 rounded-full"
+      >
+        {theme === "dark" ? (
+          <Sun className="h-5 w-5" />
+        ) : (
+          <Moon className="h-5 w-5" />
+        )}
+      </Button>
+      
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
