@@ -70,13 +70,13 @@ Deno.serve(async (req) => {
     if (body.filters?.endDate) {
       query = query.lte('created_at', body.filters.endDate);
     }
-    if (body.filters?.status) {
+    if (body.filters?.status && body.filters.status !== 'all') {
       query = query.eq('status', body.filters.status);
     }
-    if (body.filters?.category) {
+    if (body.filters?.category && body.filters.category !== 'all') {
       query = query.eq('category', body.filters.category);
     }
-    if (body.filters?.priority) {
+    if (body.filters?.priority && body.filters.priority !== 'all') {
       query = query.eq('priority', body.filters.priority);
     }
 
