@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { format, subDays, startOfDay, endOfDay, differenceInDays } from "date-fn
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 export default function AdminDashboard() {
   const { toast } = useToast();
@@ -45,9 +46,48 @@ export default function AdminDashboard() {
     priority: 'all',
   });
   const [exporting, setExporting] = useState(false);
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
     fetchData();
+
+    // Set up realtime subscription
+    channelRef.current = supabase
+      .channel('admin-complaints-channel')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'complaints'
+        },
+        (payload) => {
+          console.log('Realtime update:', payload);
+          // Refetch complaints when any change occurs
+          fetchData();
+          
+          // Show toast notification
+          if (payload.eventType === 'INSERT') {
+            toast({
+              title: "New Feedback",
+              description: "A new feedback has been submitted.",
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            toast({
+              title: "Feedback Updated",
+              description: "A feedback has been updated.",
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscription on unmount
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
