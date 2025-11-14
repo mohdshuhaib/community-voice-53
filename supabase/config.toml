@@ -57,3 +57,6 @@ max_frequency = "1s"
 
 [functions.export-feedback]
 verify_jwt = false
+
+[functions.send-admin-notification]
+verify_jwt = false
