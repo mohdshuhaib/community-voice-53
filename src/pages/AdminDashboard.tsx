@@ -40,9 +40,9 @@ export default function AdminDashboard() {
   });
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportFilters, setExportFilters] = useState({
-    status: '',
-    category: '',
-    priority: '',
+    status: 'all',
+    category: 'all',
+    priority: 'all',
   });
   const [exporting, setExporting] = useState(false);
 
@@ -619,7 +619,7 @@ export default function AdminDashboard() {
                     <SelectValue placeholder="All statuses" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All statuses</SelectItem>
+                    <SelectItem value="all">All statuses</SelectItem>
                     <SelectItem value="NEW">New</SelectItem>
                     <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
                     <SelectItem value="RESOLVED">Resolved</SelectItem>
@@ -634,7 +634,7 @@ export default function AdminDashboard() {
                     <SelectValue placeholder="All categories" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All categories</SelectItem>
+                    <SelectItem value="all">All categories</SelectItem>
                     <SelectItem value="FACILITIES">Facilities</SelectItem>
                     <SelectItem value="ACADEMICS">Academics</SelectItem>
                     <SelectItem value="ADMINISTRATION">Administration</SelectItem>
@@ -651,7 +651,7 @@ export default function AdminDashboard() {
                     <SelectValue placeholder="All priorities" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All priorities</SelectItem>
+                    <SelectItem value="all">All priorities</SelectItem>
                     <SelectItem value="LOW">Low</SelectItem>
                     <SelectItem value="MEDIUM">Medium</SelectItem>
                     <SelectItem value="HIGH">High</SelectItem>
